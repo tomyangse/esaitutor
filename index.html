@@ -3,73 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 西班牙语每日一词</title>
+    <title>ES 每日西班牙语</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-
     <div class="container">
         <header>
-            <h1>🇪🇸 每日西班牙语</h1>
+            <h1>ES 每日西班牙语</h1>
             <p>每天一词，轻松进步</p>
         </header>
 
-        <main class="card">
-            <!-- 状态1: 加载中 -->
-            <div id="loading-state">
-                <p>正在为您准备今天的课程...</p>
+        <main id="learning-card" class="card">
+            <!-- 加载状态 -->
+            <div id="loading-state" class="state">
                 <div class="spinner"></div>
+                <p>正在为您准备今日任务...</p>
             </div>
 
-            <!-- 状态2: 学习新词 -->
-            <div id="new-word-state" style="display: none;">
-                <h2>✨ 今日新词</h2>
-                <p id="new-word-spanish" class="word-spanish">Cargando...</p>
+            <!-- 错误状态 -->
+            <div id="error-state" class="state" style="display: none;">
+                <p class="error-text">加载任务失败，请刷新页面重试。</p>
+            </div>
+            
+            <!-- 完成状态 -->
+            <div id="finished-state" class="state" style="display: none;">
+                <div class="finished-icon">🎉</div>
+                <h2>¡Felicidades!</h2>
+                <p>您已完成今天所有的学习任务！<br>明天见！</p>
+            </div>
+
+            <!-- 新词学习 -->
+            <div id="new-word-section" class="state" style="display: none;">
+                <h2 class="card-title">✨ 今日新词</h2>
+                <div class="word-display">
+                    <h1 id="new-word-spanish" class="spanish-word"></h1>
+                    <!-- [重要更新] 增加了朗读按钮 -->
+                    <button id="speak-button" title="朗读" class="speak-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    </button>
+                </div>
                 
                 <div id="ai-tutor-box" class="ai-tutor">
-                    <h4>🤖 AI 老师讲解</h4>
-                    <p id="ai-explanation">...</p>
-                    <p id="ai-example"><strong>例句:</strong> <em>...</em></p>
-                    <p id="ai-tip"><strong>💡 提示:</strong> ...</p>
+                    <p><strong>🤖 AI 老师讲解</strong></p>
+                    <p id="ai-explanation"></p>
+                    <p><strong>例句:</strong> <span id="ai-example"></span></p>
+                    <p><strong>💡 提示:</strong> <span id="ai-tips"></span></p>
                 </div>
-                
-                <button id="new-word-learned-btn" class="button-primary">我学会了，开始复习！</button>
+                <button id="mark-as-learned-btn" class="main-action-btn">我学会了，开始复习!</button>
             </div>
 
-            <!-- 状态3: 复习旧词 -->
-            <div id="review-state" style="display: none;">
-                <h2>📚 复习时间 (<span id="review-count">0</span>)</h2>
-                <p id="review-word-spanish" class="word-spanish">Cargando...</p>
-
-                <div id="review-answer" style="display: none;">
-                    <p id="review-word-english" class="word-english">...</p>
+            <!-- 旧词复习 -->
+            <div id="review-section" class="state" style="display: none;">
+                <h2 class="card-title">📚 今日复习</h2>
+                <h1 id="review-word-spanish" class="spanish-word"></h1>
+                <p id="review-word-english" class="english-translation" style="visibility: hidden;"></p>
+                <button id="show-answer-btn" class="secondary-action-btn">显示答案</button>
+                <div id="feedback-buttons" style="display: none;">
+                    <p>回忆一下，你记得这个词吗？</p>
+                    <button class="feedback-btn forgot" data-quality="3">😭 忘记了</button>
+                    <button class="feedback-btn hard" data-quality="4">🤔 有点难</button>
+                    <button class="feedback-btn good" data-quality="5">😎 记住了</button>
                 </div>
-                
-                <button id="show-answer-btn" class="button-secondary">显示答案</button>
-
-                <div id="feedback-buttons" class="feedback-buttons" style="display: none;">
-                    <button class="button-feedback" data-quality="3">忘记了</button>
-                    <button class="button-feedback" data-quality="4">有点难</button>
-                    <button class="button-feedback" data-quality="5">记住了</button>
-                </div>
-            </div>
-
-            <!-- 状态4: 全部完成 -->
-            <div id="finished-state" style="display: none;">
-                <h2>🎉 ¡Felicidades!</h2>
-                <p>您已完成今天所有的学习任务！</p>
-                <p>明天见！</p>
             </div>
         </main>
-        
+
         <footer>
             <p>由 AI Tutor 强力驱动</p>
         </footer>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
+
