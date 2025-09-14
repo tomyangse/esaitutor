@@ -45,7 +45,7 @@ export default async function handler(request, response) {
     const today = new Date().toISOString().split('T')[0];
 
     try {
-        // 1. 获取复习队列
+        // 1. 获取复习队列和已学单词列表
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         const reviewQueue = userProgressList
@@ -54,22 +54,29 @@ export default async function handler(request, response) {
                 spanish: p.spanish,
                 english: p.english
             }));
+        const learnedWords = userProgressList.map(p => p ? p.spanish : null).filter(Boolean);
 
-        // 2. 寻找新词
+        // 2. [重要更新] 判断是否需要一个新词
         let newWordData = null;
+        let newWordNeeded = false;
         const lastLearnedDate = await kv.get(`user:${userId}:lastLearnedDate`);
 
         if (lastLearnedDate !== today) {
-            const learnedWords = userProgressList.map(p => p ? p.spanish : null).filter(Boolean);
+            // 条件1: 这是新的一天
+            newWordNeeded = true;
+        } else if (learnedWords.length === 0) {
+            // 条件2: 日期是今天，但单词列表为空 (处理卡住的状态)
+            newWordNeeded = true;
+            console.log("Stuck state detected: Forcing a new word fetch.");
+        }
+
+        if (newWordNeeded) {
             const nextWordToLearn = await getNewWordFromAI(learnedWords);
 
-            // [重要更新] 显式地检查AI调用是否成功
             if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
-                // 如果失败，抛出一个明确的错误，而不是静默处理
                 throw new Error("Failed to fetch a new word from the AI. Please check the GEMINI_API_KEY environment variable and ensure the Gemini API billing is active.");
             }
             
-            // 如果成功获取新词，则继续
             const aiExplanation = await getAITutorExplanation(nextWordToLearn);
             
             newWordData = {
@@ -77,6 +84,7 @@ export default async function handler(request, response) {
                 aiTutor: aiExplanation
             };
             
+            // 标记今天已经成功获取了新词
             await kv.set(`user:${userId}:lastLearnedDate`, today);
         }
 
