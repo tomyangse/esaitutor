@@ -1,163 +1,221 @@
-// 确保在整个文档加载完毕后执行我们的代码
 document.addEventListener('DOMContentLoaded', () => {
-
-    // --- 1. 获取所有需要操作的HTML元素 ---
-    // 状态容器
+    // --- 元素获取 ---
     const loadingState = document.getElementById('loading-state');
-    const newWordState = document.getElementById('new-word-state');
-    const reviewState = document.getElementById('review-state');
+    const errorState = document.getElementById('error-state');
     const finishedState = document.getElementById('finished-state');
-    const allStates = [loadingState, newWordState, reviewState, finishedState];
+    const newWordSection = document.getElementById('new-word-section');
+    const reviewSection = document.getElementById('review-section');
+    const speakButton = document.getElementById('speak-button'); // 获取朗读按钮
 
-    // 新词部分元素
-    const newWordSpanish = document.getElementById('new-word-spanish');
-    const aiExplanation = document.getElementById('ai-explanation');
-    const aiExample = document.getElementById('ai-example');
-    const aiTip = document.getElementById('ai-tip');
-    const newWordLearnedBtn = document.getElementById('new-word-learned-btn');
-
-    // 复习部分元素
-    const reviewCount = document.getElementById('review-count');
-    const reviewWordSpanish = document.getElementById('review-word-spanish');
-    const reviewWordEnglish = document.getElementById('review-word-english');
+    const markAsLearnedBtn = document.getElementById('mark-as-learned-btn');
     const showAnswerBtn = document.getElementById('show-answer-btn');
     const feedbackButtons = document.getElementById('feedback-buttons');
-    const reviewAnswer = document.getElementById('review-answer');
 
-    // --- 2. 全局状态管理 ---
-    // 用一个对象来存储从后端获取的学习任务
-    let dailyTask = {
-        newWord: null,
-        reviewQueue: [],
-        currentReviewIndex: -1
-    };
+    // --- 状态变量 ---
+    let currentTask = null;
+    let taskQueue = [];
+    let spanishVoices = [];
 
-    // --- 3. UI控制函数 ---
-    // 函数：用于切换显示不同的状态卡片
-    function showState(stateToShow) {
-        allStates.forEach(state => {
-            state.style.display = 'none';
-        });
-        stateToShow.style.display = 'block';
-    }
+    // --- 语音合成模块 ---
 
-    // 函数：用于显示下一个任务（新词或复习）
-    function displayNextTask() {
-        // 首先，检查是否有新词需要学习
-        if (dailyTask.newWord) {
-            displayNewWord(dailyTask.newWord);
-            // 将 newWord 设置为 null，表示已经处理过，下次调用就不会再显示
-            dailyTask.newWord = null; 
-        } 
-        // 其次，检查复习队列中是否还有单词
-        else if (dailyTask.reviewQueue.length > 0) {
-            displayReviewWord();
-        } 
-        // 如果都没有，说明全部任务完成
-        else {
-            showState(finishedState);
+    /**
+     * 加载并筛选可用的西班牙语语音包
+     */
+    function loadVoices() {
+        const voices = window.speechSynthesis.getVoices();
+        spanishVoices = voices.filter(voice => voice.lang.startsWith('es'));
+        if (spanishVoices.length === 0 && voices.length > 0) {
+            console.warn("未找到西班牙语语音包，将使用默认语音。");
         }
     }
 
-    // 函数：专门用于显示新词卡片
-    function displayNewWord(wordData) {
-        newWordSpanish.textContent = wordData.spanish;
-        aiExplanation.textContent = wordData.aiTutor.explanation;
-        aiExample.innerHTML = `<strong>例句:</strong> <em>${wordData.aiTutor.exampleSentence}</em>`;
-        aiTip.innerHTML = `<strong>💡 提示:</strong> ${wordData.aiTutor.extraTips}`;
-        showState(newWordState);
-    }
+    /**
+     * 朗读指定的文本
+     * @param {string} text - 要朗读的文本
+     * @param {string} lang - 语言代码 (例如 'es-ES')
+     * @param {Function} onEndCallback - 朗读结束后的回调函数
+     */
+    function speak(text, lang = 'es-ES', onEndCallback) {
+        if (!window.speechSynthesis) {
+            alert('抱歉，您的浏览器不支持语音朗读功能。');
+            return;
+        }
+        
+        window.speechSynthesis.cancel(); // 停止任何正在进行的朗读
 
-    // 函数：专门用于显示复习卡片
-    function displayReviewWord() {
-        const word = dailyTask.reviewQueue[0]; // 总是取队列的第一个
-        reviewWordSpanish.textContent = word.spanish;
-        reviewWordEnglish.textContent = word.english;
-        reviewCount.textContent = dailyTask.reviewQueue.length;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
 
-        // 重置复习卡片的状态
-        reviewAnswer.style.display = 'none';
-        feedbackButtons.style.display = 'none';
-        showAnswerBtn.style.display = 'block';
+        // 优先选择西班牙的西班牙语，其次是墨西哥的
+        const preferredVoice = spanishVoices.find(v => v.lang === 'es-ES') || spanishVoices.find(v => v.lang === 'es-MX') || spanishVoices[0];
 
-        showState(reviewState);
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
+
+        utterance.onstart = () => {
+            speakButton.classList.add('speaking');
+        };
+        
+        utterance.onend = () => {
+            speakButton.classList.remove('speaking');
+            if (onEndCallback) {
+                onEndCallback();
+            }
+        };
+        
+        window.speechSynthesis.speak(utterance);
     }
     
-    // --- 4. API通信函数 ---
-    // 函数：获取每日学习任务
-    async function fetchDailyTask() {
-        try {
-            const response = await fetch('/api/getDailyTask');
-            if (!response.ok) {
-                throw new Error('网络请求失败');
-            }
-            const data = await response.json();
+    // 初始化语音功能
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
-            // 将获取的数据存入全局状态
-            dailyTask.newWord = data.newWord;
-            dailyTask.reviewQueue = data.reviewQueue || [];
 
-            // 开始显示第一个任务
-            displayNextTask();
+    // --- UI 更新函数 ---
 
-        } catch (error) {
-            console.error('获取每日任务失败:', error);
-            // 可以在页面上显示一个错误提示
-            loadingState.innerHTML = '<p>加载任务失败，请刷新页面重试。</p>';
+    /**
+     * 显示指定的卡片状态
+     * @param {string} state - 要显示的状态ID
+     */
+    function showState(state) {
+        ['loading-state', 'error-state', 'finished-state', 'new-word-section', 'review-section'].forEach(id => {
+            document.getElementById(id.replace('-state', '-section')).style.display = (id === state) ? 'block' : 'none';
+        });
+    }
+
+    /**
+     * 显示新词卡片
+     * @param {object} task - 包含新词信息的任务对象
+     */
+    function showNewWord(task) {
+        showState('new-word-section');
+        document.getElementById('new-word-spanish').textContent = task.newWord.spanish;
+        const aiTutor = task.newWord.aiTutor;
+        document.getElementById('ai-explanation').textContent = aiTutor.explanation || '暂无讲解';
+        document.getElementById('ai-example').textContent = aiTutor.exampleSentence || '暂无例句';
+        document.getElementById('ai-tips').textContent = aiTutor.extraTips || '暂无提示';
+    }
+
+    /**
+     * 显示复习卡片
+     * @param {object} word - 包含复习词信息的对象
+     */
+    function showReviewWord(word) {
+        showState('review-section');
+        document.getElementById('review-word-spanish').textContent = word.spanish;
+        document.getElementById('review-word-english').textContent = word.english;
+        document.getElementById('review-word-english').style.visibility = 'hidden';
+        showAnswerBtn.style.display = 'block';
+        feedbackButtons.style.display = 'none';
+    }
+
+
+    // --- 核心逻辑 ---
+
+    /**
+     * 处理任务队列中的下一个任务
+     */
+    function processNextTask() {
+        if (taskQueue.length > 0) {
+            currentTask = taskQueue.shift();
+            showReviewWord(currentTask);
+        } else {
+            showState('finished-state');
         }
     }
 
-    // 函数：更新单词学习进度
+    /**
+     * 从后端获取每日学习任务
+     */
+    async function fetchDailyTask() {
+        showState('loading-state');
+        try {
+            const response = await fetch('/api/getDailyTask');
+            if (!response.ok) throw new Error('Network response was not ok.');
+            
+            const data = await response.json();
+            
+            if (data.newWord) {
+                currentTask = data;
+                taskQueue = data.reviewQueue || [];
+                showNewWord(data);
+            } else if (data.reviewQueue && data.reviewQueue.length > 0) {
+                taskQueue = data.reviewQueue;
+                processNextTask();
+            } else {
+                showState('finished-state');
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            showState('error-state');
+        }
+    }
+
+    /**
+     * 更新单词学习进度到后端
+     * @param {string} word - 西班牙语单词
+     * @param {number} quality - 回答质量 (3, 4, 5)
+     */
     async function updateProgress(word, quality) {
         try {
             await fetch('/api/update-progress', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    spanish: word.spanish,
-                    english: word.english,
-                    quality: quality
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spanishWord: word, quality: quality })
             });
         } catch (error) {
-            console.error('更新进度失败:', error);
+            console.error('Update progress error:', error);
         }
     }
 
-    // --- 5. 事件监听器 ---
-    // 当点击 "我学会了" 按钮
-    newWordLearnedBtn.addEventListener('click', async () => {
-        // 因为这是新词，我们用 "记住了" (quality=5) 的标准来更新它的进度
-        // 这样它就会被加入到未来的复习计划中
-        await updateProgress(dailyTask.newWord, 5); 
-        displayNextTask(); // 显示下一个任务（可能是复习，也可能是完成）
+
+    // --- 事件监听 ---
+
+    // 点击 "我学会了，开始复习!"
+    markAsLearnedBtn.addEventListener('click', async () => {
+        await updateProgress(currentTask.newWord.spanish, 5); // 首次学习默认为"记住了"
+        processNextTask();
     });
 
-    // 当点击 "显示答案" 按钮
+    // 点击 "显示答案"
     showAnswerBtn.addEventListener('click', () => {
-        reviewAnswer.style.display = 'block';
-        feedbackButtons.style.display = 'flex';
+        document.getElementById('review-word-english').style.visibility = 'visible';
         showAnswerBtn.style.display = 'none';
+        feedbackButtons.style.display = 'flex';
     });
 
-    // 当点击反馈按钮 ("忘记了", "有点难", "记住了")
-    feedbackButtons.addEventListener('click', async (event) => {
-        // 利用事件委托，判断是否点击了带有 data-quality 属性的按钮
-        if (event.target.classList.contains('button-feedback')) {
-            const quality = parseInt(event.target.dataset.quality, 10);
-            const currentWord = dailyTask.reviewQueue.shift(); // 从队列头部取出一个单词并处理
+    // 点击 "忘记了" "有点难" "记住了"
+    feedbackButtons.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('feedback-btn')) {
+            const quality = parseInt(e.target.dataset.quality, 10);
+            await updateProgress(currentTask.spanish, quality);
+            processNextTask();
+        }
+    });
+    
+    // 点击朗读按钮
+    speakButton.addEventListener('click', () => {
+        if (!currentTask || !currentTask.newWord) return;
 
-            // 将用户的反馈发送到后端
-            await updateProgress(currentWord, quality);
-            
-            // 显示下一个任务
-            displayNextTask();
+        const word = currentTask.newWord.spanish;
+        const sentence = currentTask.newWord.aiTutor.exampleSentence;
+
+        if (word && sentence) {
+            // 先读单词，读完后再读例句
+            speak(word, 'es-ES', () => {
+                setTimeout(() => {
+                    speak(sentence, 'es-ES');
+                }, 300); // 短暂延迟，使发音更自然
+            });
+        } else if (word) {
+            speak(word, 'es-ES');
         }
     });
 
-    // --- 6. 应用启动 ---
-    // 页面加载后，立即开始获取每日任务
+    // --- 应用启动 ---
     fetchDailyTask();
 });
+
