@@ -1,9 +1,6 @@
 import { kv } from '@vercel/kv';
-import nodemailer from 'nodemailer'; // 用于发送邮件的库
 
-// --- 注意: 为了保持每个API文件的独立性，我们在这里重新定义了AI调用函数 ---
-// 在大型项目中，建议将这些函数提取到共享的 /lib 目录中。
-
+// --- AI 调用函数 (与之前版本相同) ---
 async function getNewWordFromAI(learnedWordsList) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return { spanish: "error", english: "API key not configured" };
@@ -42,20 +39,58 @@ async function getAITutorExplanation(word) {
     }
 }
 
-// --- Google Calendar 链接生成函数 ---
 function createGoogleCalendarLink(newWord, reviewList, platformUrl) {
     const today = new Date();
-    const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0); // 设置为今天上午10点
-    const endTime = new Date(startTime.getTime() + 15 * 60000); // 学习15分钟
+    const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0);
+    const endTime = new Date(startTime.getTime() + 15 * 60000);
     const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
     const eventDetails = `今日新词: ${newWord.spanish}\\n\\n复习单词:\\n${reviewList.join(', ')}\\n\\n点击链接开始学习:\\n${platformUrl}`;
     const params = new URLSearchParams({ action: 'TEMPLATE', text: `每日西语学习: ${newWord.spanish}`, dates: `${formatDate(startTime)}/${formatDate(endTime)}`, details: eventDetails, location: platformUrl });
     return `https://www.google.com/calendar/render?${params.toString()}`;
 }
 
+
+// --- 新增: 使用 Brevo API 发送邮件的函数 ---
+async function sendEmailWithBrevo({ subject, htmlContent, recipientEmail, senderEmail }) {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) {
+        throw new Error("Brevo API key is not configured.");
+    }
+
+    const payload = {
+        sender: {
+            email: senderEmail,
+            name: "AI Spanish Tutor"
+        },
+        to: [
+            { email: recipientEmail }
+        ],
+        subject: subject,
+        htmlContent: htmlContent
+    };
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+            'accept': 'application/json',
+            'api-key': apiKey,
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error("Brevo API Error:", errorBody);
+        throw new Error(`Failed to send email. Status: ${response.status}`);
+    }
+    
+    return await response.json();
+}
+
+
 // --- 主处理函数 (由 Vercel Cron Job 每日触发) ---
 export default async function handler(request, response) {
-    // 安全验证：确保请求来自Vercel的Cron服务
     if (request.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
         return response.status(401).end('Unauthorized');
     }
@@ -64,33 +99,22 @@ export default async function handler(request, response) {
     const todayStr = new Date().toISOString().split('T')[0];
 
     try {
-        // 1. 获取所有学过的单词并计算复习队列
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= todayStr).map(p => p.spanish);
-
-        // 2. 获取今天的新词和AI讲解
         const learnedWords = userProgressList.map(p => p ? p.spanish : null).filter(Boolean);
         const newWord = await getNewWordFromAI(learnedWords);
-        if (!newWord || newWord.spanish === 'error') throw new Error("Failed to get a new word from AI.");
+        if (!newWord || newWord.spanish === 'error') throw new Error("Failed to get a new word.");
+        
         const aiTutor = await getAITutorExplanation(newWord);
         const chineseMeaning = aiTutor.explanation.split('，')[0];
-
-        // 3. 配置邮件服务
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: process.env.GMAIL_EMAIL, pass: process.env.GMAIL_APP_PASSWORD },
-        });
-
         const platformUrl = process.env.PLATFORM_URL || 'http://localhost:3000';
         const googleCalendarLink = createGoogleCalendarLink(newWord, reviewQueue, platformUrl);
 
-        // 4. 编写并发送邮件
-        const mailOptions = {
-            from: process.env.GMAIL_EMAIL,
-            to: process.env.GMAIL_EMAIL, // 发送给自己
+        // --- 使用新的Brevo函数发送邮件 ---
+        await sendEmailWithBrevo({
             subject: `🇪🇸 你的每日西班牙语单词: ${newWord.spanish}`,
-            html: `
+            htmlContent: `
                 <div style="font-family: sans-serif; line-height: 1.6;">
                     <h2>¡Hola! 这是你的每日西班牙语课程 ☀️</h2>
                     <p>坚持就是胜利！这是今天的学习任务：</p>
@@ -108,11 +132,11 @@ export default async function handler(request, response) {
                     </p>
                 </div>
             `,
-        };
+            recipientEmail: process.env.RECIPIENT_EMAIL,
+            senderEmail: process.env.SENDER_EMAIL
+        });
 
-        await transporter.sendMail(mailOptions);
-        response.status(200).json({ success: true, message: 'Reminder email sent.' });
-
+        response.status(200).json({ success: true, message: 'Reminder email sent via Brevo.' });
     } catch (error) {
         console.error("Error in daily-reminder cron job:", error);
         response.status(500).json({ success: false, error: error.message });
