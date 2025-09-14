@@ -1,0 +1,39 @@
+{
+  "name": "ai-spanish-learner",
+  "version": "1.0.0",
+  "description": "An AI-powered Spanish learning tool with spaced repetition.",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "spanish",
+    "learning",
+    "ai",
+    "srs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nodemailer": "^6.9.14"
+  }
+}
+```
+
+### `.gitignore`
+
+这个文件告诉Git哪些文件或文件夹不需要上传到您的GitHub仓库，比如包含大量依赖文件的 `node_modules` 文件夹。
+
+请将以下内容复制并粘贴到您的 `.gitignore` 文件中：
+
+```:Git忽略文件:.gitignore
+# Dependencies
+/node_modules
+
+# Vercel
+.vercel
+
+# Environment variables
+.env
+.env*.local
+

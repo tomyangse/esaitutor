@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 西班牙语每日一词</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>🇪🇸 每日西班牙语</h1>
+            <p>每天一词，轻松进步</p>
+        </header>
+
+        <main class="card">
+            <!-- 状态1: 加载中 -->
+            <div id="loading-state">
+                <p>正在为您准备今天的课程...</p>
+                <div class="spinner"></div>
+            </div>
+
+            <!-- 状态2: 学习新词 -->
+            <div id="new-word-state" style="display: none;">
+                <h2>✨ 今日新词</h2>
+                <p id="new-word-spanish" class="word-spanish">Cargando...</p>
+                
+                <div id="ai-tutor-box" class="ai-tutor">
+                    <h4>🤖 AI 老师讲解</h4>
+                    <p id="ai-explanation">...</p>
+                    <p id="ai-example"><strong>例句:</strong> <em>...</em></p>
+                    <p id="ai-tip"><strong>💡 提示:</strong> ...</p>
+                </div>
+                
+                <button id="new-word-learned-btn" class="button-primary">我学会了，开始复习！</button>
+            </div>
+
+            <!-- 状态3: 复习旧词 -->
+            <div id="review-state" style="display: none;">
+                <h2>📚 复习时间 (<span id="review-count">0</span>)</h2>
+                <p id="review-word-spanish" class="word-spanish">Cargando...</p>
+
+                <div id="review-answer" style="display: none;">
+                    <p id="review-word-english" class="word-english">...</p>
+                </div>
+                
+                <button id="show-answer-btn" class="button-secondary">显示答案</button>
+
+                <div id="feedback-buttons" class="feedback-buttons" style="display: none;">
+                    <button class="button-feedback" data-quality="3">忘记了</button>
+                    <button class="button-feedback" data-quality="4">有点难</button>
+                    <button class="button-feedback" data-quality="5">记住了</button>
+                </div>
+            </div>
+
+            <!-- 状态4: 全部完成 -->
+            <div id="finished-state" style="display: none;">
+                <h2>🎉 ¡Felicidades!</h2>
+                <p>您已完成今天所有的学习任务！</p>
+                <p>明天见！</p>
+            </div>
+        </main>
+        
+        <footer>
+            <p>由 AI Tutor 强力驱动</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
