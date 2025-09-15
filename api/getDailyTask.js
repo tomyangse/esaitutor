@@ -1,6 +1,6 @@
 import { kv } from '@vercel/kv';
 
-// --- AI 调用函数 (与之前版本相同) ---
+// --- AI 调用函数 (保持不变) ---
 async function getNewWordFromAI(learnedWordsList) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return { spanish: "error", english: "API key not configured" };
@@ -19,7 +19,6 @@ async function getNewWordFromAI(learnedWordsList) {
         return { spanish: "error", english: "Failed to fetch" };
     }
 }
-
 async function getAITutorExplanation(word) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return { explanation: "AI讲解功能当前不可用。", exampleSentence: "N/A", sentenceTranslation: "N/A", extraTips: "请检查API密钥配置。" };
@@ -45,53 +44,41 @@ export default async function handler(request, response) {
     const today = new Date().toISOString().split('T')[0];
 
     try {
-        // 1. 获取复习队列和已学单词列表
+        // 1. 获取复习队列
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
-        const reviewQueue = userProgressList
-            .filter(p => p && p.reviewDate <= today)
-            .map(p => ({
-                spanish: p.spanish,
-                english: p.english
-            }));
+        const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= today).map(p => ({ spanish: p.spanish, english: p.english }));
+
+        // [重要更新] 检查“特殊印章”
+        const lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
+        if (lastLearnedRecord && lastLearnedRecord.date === today) {
+            // 如果今天已经学过，直接返回这个单词的信息
+            const wordInfo = userProgressList.find(p => p.spanish === lastLearnedRecord.spanishWord);
+            return response.status(200).json({
+                learnedToday: wordInfo, // 返回一个新的 learnedToday 字段
+                reviewQueue: reviewQueue
+            });
+        }
+
+        // 2. 如果今天没学过，则获取新词
         const learnedWords = userProgressList.map(p => p ? p.spanish : null).filter(Boolean);
+        const nextWordToLearn = await getNewWordFromAI(learnedWords);
 
-        // 2. [重要更新] 判断是否需要一个新词
-        let newWordData = null;
-        let newWordNeeded = false;
-        const lastLearnedDate = await kv.get(`user:${userId}:lastLearnedDate`);
-
-        if (lastLearnedDate !== today) {
-            // 条件1: 这是新的一天
-            newWordNeeded = true;
-        } else if (learnedWords.length === 0) {
-            // 条件2: 日期是今天，但单词列表为空 (处理卡住的状态)
-            newWordNeeded = true;
-            console.log("Stuck state detected: Forcing a new word fetch.");
+        if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
+            throw new Error("Failed to fetch a new word from the AI.");
         }
-
-        if (newWordNeeded) {
-            const nextWordToLearn = await getNewWordFromAI(learnedWords);
-
-            if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
-                throw new Error("Failed to fetch a new word from the AI. Please check the GEMINI_API_KEY environment variable and ensure the Gemini API billing is active.");
-            }
-            
-            const aiExplanation = await getAITutorExplanation(nextWordToLearn);
-            
-            newWordData = {
-                ...nextWordToLearn,
-                aiTutor: aiExplanation
-            };
-            
-            // 标记今天已经成功获取了新词
-            await kv.set(`user:${userId}:lastLearnedDate`, today);
-        }
+        
+        const aiExplanation = await getAITutorExplanation(nextWordToLearn);
+        
+        const newWordData = {
+            ...nextWordToLearn,
+            aiTutor: aiExplanation
+        };
 
         // 3. 返回最终结果
         response.status(200).json({
-            reviewQueue: reviewQueue,
-            newWord: newWordData
+            newWord: newWordData,
+            reviewQueue: reviewQueue
         });
 
     } catch (error) {
