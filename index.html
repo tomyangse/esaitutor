@@ -28,6 +28,15 @@
                 <p class="error-text">加载任务失败，请刷新页面重试。</p>
             </div>
             
+            <!-- [重要更新] 新增“今日已学”状态 -->
+            <div id="learned-today-section" class="state" style="display: none;">
+                <div class="finished-icon">👍</div>
+                <h2>今日任务已完成</h2>
+                <p>您今天学习的单词是：</p>
+                <h1 id="learned-today-word" class="spanish-word"></h1>
+                <p style="margin-top: 20px;">请明天再来学习新单词！</p>
+            </div>
+
             <!-- 完成状态 -->
             <div id="finished-state" class="state" style="display: none;">
                 <div class="finished-icon">🎉</div>
@@ -40,7 +49,6 @@
                 <h2 class="card-title">✨ 今日新词</h2>
                 <div class="word-display">
                     <h1 id="new-word-spanish" class="spanish-word"></h1>
-                    <!-- [重要更新] 增加了朗读按钮 -->
                     <button id="speak-button" title="朗读" class="speak-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                     </button>
