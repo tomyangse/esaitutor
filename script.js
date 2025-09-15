@@ -45,18 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI 更新函数 ---
-    /**
-     * [重要修正] 使用更简单、更健壮的逻辑来显示指定的卡片状态
-     * @param {string} stateToShow - 要显示的状态ID
-     */
     function showState(stateToShow) {
-        const allStateIds = [
-            'loading-state', 
-            'error-state', 
-            'finished-state', 
-            'new-word-section', 
-            'review-section'
-        ];
+        const allStateIds = ['loading-state', 'error-state', 'finished-state', 'new-word-section', 'review-section'];
         allStateIds.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
@@ -95,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     async function fetchDailyTask() {
         showState('loading-state');
-        
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
             controller.abort();
@@ -106,13 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/getDailyTask', { signal: controller.signal });
             clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error(`Network response was not ok. Status: ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
             const data = await response.json();
-            
             if (data.newWord) {
                 currentTask = data;
                 taskQueue = data.reviewQueue || [];
@@ -125,20 +109,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             clearTimeout(timeoutId);
-            if (error.name === 'AbortError') {
-                return;
-            }
+            if (error.name === 'AbortError') return;
             console.error('Fetch error:', error);
             showState('error-state');
         }
     }
 
-    async function updateProgress(word, quality) {
+    // [重要更新] 更新函数现在可以接收新词的英文意思
+    async function updateProgress(spanishWord, quality, englishWord = null) {
+        const payload = { spanishWord, quality };
+        if (englishWord) {
+            payload.englishWord = englishWord;
+        }
         try {
             await fetch('/api/update-progress', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spanishWord: word, quality: quality })
+                body: JSON.stringify(payload)
             });
         } catch (error) {
             console.error('Update progress error:', error);
@@ -147,7 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 事件监听 ---
     markAsLearnedBtn.addEventListener('click', async () => {
-        await updateProgress(currentTask.newWord.spanish, 5);
+        // [重要更新] 调用时传入新词的英文意思
+        await updateProgress(currentTask.newWord.spanish, 5, currentTask.newWord.english);
         processNextTask();
     });
 
@@ -160,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     feedbackButtons.addEventListener('click', async (e) => {
         if (e.target.classList.contains('feedback-btn')) {
             const quality = parseInt(e.target.dataset.quality, 10);
+            // [重要更新] 复习词不需要传英文，保持不变
             await updateProgress(currentTask.spanish, quality);
             processNextTask();
         }
@@ -170,9 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const word = currentTask.newWord.spanish;
         const sentence = currentTask.newWord.aiTutor.exampleSentence;
         if (word && sentence) {
-            speak(word, 'es-ES', () => {
-                setTimeout(() => speak(sentence, 'es-ES'), 300);
-            });
+            speak(word, 'es-ES', () => setTimeout(() => speak(sentence, 'es-ES'), 300));
         } else if (word) {
             speak(word, 'es-ES');
         }
