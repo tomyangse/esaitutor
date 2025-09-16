@@ -1,6 +1,6 @@
 import { kv } from '@vercel/kv';
 
-// --- AI 调用函数 (与之前版本相同) ---
+// --- AI 调用函数 (保持不变) ---
 async function getNewWordFromAI(learnedWordsList) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return { spanish: "error", english: "API key not configured" };
@@ -19,7 +19,6 @@ async function getNewWordFromAI(learnedWordsList) {
         return { spanish: "error", english: "Failed to fetch" };
     }
 }
-
 async function getAITutorExplanation(word) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return { explanation: "AI讲解功能当前不可用。", exampleSentence: "N/A", sentenceTranslation: "N/A", extraTips: "请检查API密钥配置。" };
@@ -38,7 +37,14 @@ async function getAITutorExplanation(word) {
         return { explanation: "调用AI老师功能时发生错误。", exampleSentence: "Error", sentenceTranslation: "Error", extraTips: error.message };
     }
 }
-
+async function sendEmailWithBrevo({ subject, htmlContent, recipientEmail, senderEmail }) {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) { throw new Error("Brevo API key is not configured."); }
+    const payload = { sender: { email: senderEmail, name: "AI Spanish Tutor" }, to: [{ email: recipientEmail }], subject: subject, htmlContent: htmlContent };
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', { method: 'POST', headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!response.ok) { const errorBody = await response.json(); console.error("Brevo API Error:", errorBody); throw new Error(`Failed to send email. Status: ${response.status}`); }
+    return await response.json();
+}
 function createGoogleCalendarLink(newWord, reviewList, platformUrl) {
     const today = new Date();
     const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0);
@@ -47,45 +53,6 @@ function createGoogleCalendarLink(newWord, reviewList, platformUrl) {
     const eventDetails = `今日新词: ${newWord.spanish}\\n\\n复习单词:\\n${reviewList.join(', ')}\\n\\n点击链接开始学习:\\n${platformUrl}`;
     const params = new URLSearchParams({ action: 'TEMPLATE', text: `每日西语学习: ${newWord.spanish}`, dates: `${formatDate(startTime)}/${formatDate(endTime)}`, details: eventDetails, location: platformUrl });
     return `https://www.google.com/calendar/render?${params.toString()}`;
-}
-
-
-// --- 新增: 使用 Brevo API 发送邮件的函数 ---
-async function sendEmailWithBrevo({ subject, htmlContent, recipientEmail, senderEmail }) {
-    const apiKey = process.env.BREVO_API_KEY;
-    if (!apiKey) {
-        throw new Error("Brevo API key is not configured.");
-    }
-
-    const payload = {
-        sender: {
-            email: senderEmail,
-            name: "AI Spanish Tutor"
-        },
-        to: [
-            { email: recipientEmail }
-        ],
-        subject: subject,
-        htmlContent: htmlContent
-    };
-
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-            'accept': 'application/json',
-            'api-key': apiKey,
-            'content-type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        const errorBody = await response.json();
-        console.error("Brevo API Error:", errorBody);
-        throw new Error(`Failed to send email. Status: ${response.status}`);
-    }
-    
-    return await response.json();
 }
 
 
@@ -103,15 +70,35 @@ export default async function handler(request, response) {
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= todayStr).map(p => p.spanish);
         const learnedWords = userProgressList.map(p => p ? p.spanish : null).filter(Boolean);
-        const newWord = await getNewWordFromAI(learnedWords);
-        if (!newWord || newWord.spanish === 'error') throw new Error("Failed to get a new word.");
+
+        let newWord;
+        let isNewWordFromEmail = false;
+        
+        const lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
+        if (lastLearnedRecord && lastLearnedRecord.date === todayStr) {
+            console.log(`Email cron: Found word learned today - ${lastLearnedRecord.spanishWord}`);
+            const wordInfo = userProgressList.find(p => p.spanish === lastLearnedRecord.spanishWord);
+            newWord = { spanish: wordInfo.spanish, english: wordInfo.english };
+        } else {
+            console.log("Email cron: No word learned today, fetching a new one for reminder.");
+            newWord = await getNewWordFromAI(learnedWords);
+            isNewWordFromEmail = true;
+        }
+
+        if (!newWord || newWord.spanish === 'error') throw new Error("Failed to get a new word for the email.");
+        
+        // [重要更新] 如果是邮件脚本第一次生成了新词，立刻把它存到数据库
+        if (isNewWordFromEmail) {
+            console.log(`Email cron: Setting today's new word to "${newWord.spanish}" in the database.`);
+            await kv.set(`user:${userId}:lastLearnedNewWord`, { spanishWord: newWord.spanish, date: todayStr });
+        }
         
         const aiTutor = await getAITutorExplanation(newWord);
         const chineseMeaning = aiTutor.explanation.split('，')[0];
+        
         const platformUrl = process.env.PLATFORM_URL || 'http://localhost:3000';
         const googleCalendarLink = createGoogleCalendarLink(newWord, reviewQueue, platformUrl);
 
-        // --- 使用新的Brevo函数发送邮件 ---
         await sendEmailWithBrevo({
             subject: `🇪🇸 你的每日西班牙语单词: ${newWord.spanish}`,
             htmlContent: `
@@ -136,7 +123,7 @@ export default async function handler(request, response) {
             senderEmail: process.env.SENDER_EMAIL
         });
 
-        response.status(200).json({ success: true, message: 'Reminder email sent via Brevo.' });
+        response.status(200).json({ success: true, message: 'Reminder email sent with consistent logic.' });
     } catch (error) {
         console.error("Error in daily-reminder cron job:", error);
         response.status(500).json({ success: false, error: error.message });
