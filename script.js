@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 元素获取 (新增) ---
+    // --- 元素获取 ---
     const learnedWordsContainer = document.getElementById('learned-words-container');
     const toggleWordsBtn = document.getElementById('toggle-words-btn');
     const learnedWordsList = document.getElementById('learned-words-list');
@@ -7,14 +7,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const markAsLearnedBtn = document.getElementById('mark-as-learned-btn');
     const showAnswerBtn = document.getElementById('show-answer-btn');
     const feedbackButtons = document.getElementById('feedback-buttons');
+    const speakLearnedTodayBtn = document.getElementById('speak-learned-today-btn');
 
-
-    // --- 状态变量 (保持不变) ---
+    // --- 状态变量 ---
     let currentTask = null;
     let taskQueue = [];
     let spanishVoices = [];
 
-    // --- 语音合成模块 (保持不变) ---
+    // --- 语音合成模块 ---
     function loadVoices() {
         const voices = window.speechSynthesis.getVoices();
         spanishVoices = voices.filter(voice => voice.lang.startsWith('es'));
@@ -22,16 +22,25 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn("未找到西班牙语语音包，将使用默认语音。");
         }
     }
-    function speak(text, lang = 'es-ES', onEndCallback) {
-        if (!window.speechSynthesis) { alert('抱歉，您的浏览器不支持语音朗读功能。'); return; }
+    
+    function speak(text, lang = 'es-ES', buttonElement, onEndCallback) {
+        if (!window.speechSynthesis) {
+            alert('抱歉，您的浏览器不支持语音朗读功能。');
+            return;
+        }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = lang;
         const preferredVoice = spanishVoices.find(v => v.lang === 'es-ES') || spanishVoices.find(v => v.lang === 'es-MX') || spanishVoices[0];
-        if (preferredVoice) { utterance.voice = preferredVoice; }
-        utterance.onstart = () => speakButton.classList.add('speaking');
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
+        
+        utterance.onstart = () => {
+            if (buttonElement) buttonElement.classList.add('speaking');
+        };
         utterance.onend = () => {
-            speakButton.classList.remove('speaking');
+            if (buttonElement) buttonElement.classList.remove('speaking');
             if (onEndCallback) onEndCallback();
         };
         window.speechSynthesis.speak(utterance);
@@ -60,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ai-example').textContent = aiTutor.exampleSentence || '暂无例句';
         document.getElementById('ai-tips').textContent = aiTutor.extraTips || '暂无提示';
     }
+
     function showReviewWord(word) {
         showState('review-section');
         document.getElementById('review-word-spanish').textContent = word.spanish;
@@ -68,13 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showAnswerBtn.style.display = 'block';
         feedbackButtons.style.display = 'none';
     }
+
     function showLearnedToday(task) {
         showState('learned-today-section');
         document.getElementById('learned-today-word').textContent = task.learnedToday.spanish;
+        document.getElementById('learned-today-sentence').textContent = task.learnedToday.exampleSentence || '';
     }
 
-
-    // [重要更新] 新增函数：填充已学单词列表
     function populateLearnedWordsList(words) {
         if (!words || words.length === 0) {
             learnedWordsContainer.style.display = 'none';
@@ -82,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         learnedWordsContainer.style.display = 'block';
-        learnedWordsList.innerHTML = ''; // 清空旧列表
+        learnedWordsList.innerHTML = '';
 
         words.forEach(word => {
             const item = document.createElement('div');
@@ -108,7 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchDailyTask() {
         showState('loading-state');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => { controller.abort(); console.error('Frontend fetch timed out'); showState('error-state'); }, 25000);
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.error('Frontend fetch timed out');
+            showState('error-state');
+        }, 25000);
 
         try {
             const response = await fetch('/api/getDailyTask', { signal: controller.signal });
@@ -117,13 +131,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const data = await response.json();
             
-            // [重要更新] 调用填充列表函数
             populateLearnedWordsList(data.allLearnedWords);
 
             if (data.learnedToday) {
                 taskQueue = data.reviewQueue || [];
-                if (taskQueue.length > 0) processNextTask();
-                else showLearnedToday(data);
+                if (taskQueue.length > 0) {
+                    processNextTask();
+                } else {
+                    showLearnedToday(data);
+                }
             } else if (data.newWord) {
                 currentTask = data;
                 taskQueue = data.reviewQueue || [];
@@ -142,18 +158,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function updateProgress(spanishWord, quality, englishWord = null) {
+    async function updateProgress(spanishWord, quality, englishWord = null, exampleSentence = null) {
         const payload = { spanishWord, quality };
-        if (englishWord) { payload.englishWord = englishWord; }
+        if (englishWord) {
+            payload.englishWord = englishWord;
+        }
+        if (exampleSentence) {
+            payload.exampleSentence = exampleSentence;
+        }
         try {
             await fetch('/api/update-progress', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-        } catch (error) { console.error('Update progress error:', error); }
+        } catch (error) {
+            console.error('Update progress error:', error);
+        }
     }
-
 
     // --- 事件监听 ---
     toggleWordsBtn.addEventListener('click', () => {
@@ -162,9 +184,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     markAsLearnedBtn.addEventListener('click', async () => {
-        await updateProgress(currentTask.newWord.spanish, 5, currentTask.newWord.english);
-        // 手动将新词添加到前端列表，避免刷新
-        const newWord = { spanish: currentTask.newWord.spanish, english: currentTask.newWord.english };
+        const newWordInfo = currentTask.newWord;
+        await updateProgress(newWordInfo.spanish, 5, newWordInfo.english, newWordInfo.aiTutor.exampleSentence);
+        
+        const newWord = { spanish: newWordInfo.spanish, english: newWordInfo.english };
         const currentList = Array.from(learnedWordsList.children).map(item => ({
             spanish: item.querySelector('.spanish').textContent,
             english: item.querySelector('.english').textContent
@@ -172,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         populateLearnedWordsList([newWord, ...currentList]);
         processNextTask();
     });
+
     showAnswerBtn.addEventListener('click', () => {
         document.getElementById('review-word-english').style.visibility = 'visible';
         showAnswerBtn.style.display = 'none';
@@ -184,17 +208,27 @@ document.addEventListener('DOMContentLoaded', () => {
             processNextTask();
         }
     });
+    
     speakButton.addEventListener('click', () => {
         if (!currentTask || !currentTask.newWord) return;
         const word = currentTask.newWord.spanish;
         const sentence = currentTask.newWord.aiTutor.exampleSentence;
         if (word && sentence) {
-            speak(word, 'es-ES', () => setTimeout(() => speak(sentence, 'es-ES'), 300));
+            speak(word, 'es-ES', speakButton, () => setTimeout(() => speak(sentence, 'es-ES', speakButton), 300));
         } else if (word) {
-            speak(word, 'es-ES');
+            speak(word, 'es-ES', speakButton);
         }
     });
 
+    speakLearnedTodayBtn.addEventListener('click', () => {
+        const word = document.getElementById('learned-today-word').textContent;
+        const sentence = document.getElementById('learned-today-sentence').textContent;
+        if (word && sentence) {
+            speak(word, 'es-ES', speakLearnedTodayBtn, () => setTimeout(() => speak(sentence, 'es-ES', speakLearnedTodayBtn), 300));
+        } else if (word) {
+            speak(word, 'es-ES', speakLearnedTodayBtn);
+        }
+    });
 
     // --- 应用启动 ---
     fetchDailyTask();
