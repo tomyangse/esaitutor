@@ -52,14 +52,13 @@ export default async function handler(request, response) {
         const lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
         if (lastLearnedRecord && lastLearnedRecord.date === today) {
             
-            // [重要修正] 构造一个确保信息完整的 learnedToday 对象
-            const wordInfoFromList = userProgressList.find(p => p.spanish === lastLearnedRecord.spanishWord);
+            const wordInfoFromList = userProgressList.find(p => p && p.spanish === lastLearnedRecord.spanishWord);
             
+            // [重要修正] 构造一个更健壮的 learnedToday 对象
             const learnedTodayData = {
                 spanish: lastLearnedRecord.spanishWord,
-                // 优先使用 "特殊印章" 里的例句，因为它一定是最新的
-                exampleSentence: lastLearnedRecord.exampleSentence, 
-                // 其他信息可以从列表里获取
+                // 优先使用 "特殊印章" 里的例句，如果印章里没有，就从总单词列表里找
+                exampleSentence: lastLearnedRecord.exampleSentence || (wordInfoFromList ? wordInfoFromList.exampleSentence : ''), 
                 english: wordInfoFromList ? wordInfoFromList.english : ''
             };
 
