@@ -182,12 +182,19 @@ header p {
 .feedback-btn.good { background-color: #2ecc71; color: white; }
 .feedback-btn.good:hover { background-color: #27ae60; }
 
+
+/* --- 页脚 --- */
+footer {
+    margin-top: 40px;
+    color: #95a5a6;
+}
+
 /* --- 朗读按钮相关样式 --- */
 .word-display {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
+    gap: 12px; /* 单词和按钮之间的间距 */
     margin-bottom: 20px;
 }
 
@@ -293,9 +300,13 @@ header p {
     color: #7f8c8d;
 }
 
-/* --- 页脚 --- */
-footer {
-    margin-top: 40px;
-    color: #95a5a6;
+/* --- “今日已学”卡片中的例句 --- */
+.example-sentence {
+    font-size: 1.1em;
+    color: #555;
+    margin-top: -5px;
+    margin-bottom: 15px;
+    font-style: italic;
+    padding: 0 10px;
 }
 
