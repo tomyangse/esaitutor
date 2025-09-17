@@ -44,32 +44,33 @@ export default async function handler(request, response) {
     const today = new Date().toISOString().split('T')[0];
 
     try {
-        // 1. 获取所有学过的单词进度
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
-        
-        // [重要更新] 准备一个包含所有已学单词的完整列表
-        const allLearnedWords = userProgressList
-            .filter(p => p) // 过滤掉可能存在的null值
-            .map(p => ({ spanish: p.spanish, english: p.english }));
-
-        // 2. 准备复习队列
+        const allLearnedWords = userProgressList.filter(p => p).map(p => ({ spanish: p.spanish, english: p.english }));
         const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= today).map(p => ({ spanish: p.spanish, english: p.english }));
 
-        // 3. 检查今天是否已经学过新词
         const lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
         if (lastLearnedRecord && lastLearnedRecord.date === today) {
-            const wordInfo = userProgressList.find(p => p.spanish === lastLearnedRecord.spanishWord);
+            
+            // [重要修正] 构造一个确保信息完整的 learnedToday 对象
+            const wordInfoFromList = userProgressList.find(p => p.spanish === lastLearnedRecord.spanishWord);
+            
+            const learnedTodayData = {
+                spanish: lastLearnedRecord.spanishWord,
+                // 优先使用 "特殊印章" 里的例句，因为它一定是最新的
+                exampleSentence: lastLearnedRecord.exampleSentence, 
+                // 其他信息可以从列表里获取
+                english: wordInfoFromList ? wordInfoFromList.english : ''
+            };
+
             return response.status(200).json({
-                learnedToday: wordInfo,
+                learnedToday: learnedTodayData,
                 reviewQueue: reviewQueue,
-                allLearnedWords: allLearnedWords // 附带完整列表
+                allLearnedWords: allLearnedWords
             });
         }
 
-        // 4. 如果今天没学过，则获取新词
         const nextWordToLearn = await getNewWordFromAI(allLearnedWords.map(w => w.spanish));
-
         if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
             throw new Error("Failed to fetch a new word from the AI.");
         }
@@ -77,11 +78,10 @@ export default async function handler(request, response) {
         const aiExplanation = await getAITutorExplanation(nextWordToLearn);
         const newWordData = { ...nextWordToLearn, aiTutor: aiExplanation };
 
-        // 5. 返回最终结果
         response.status(200).json({
             newWord: newWordData,
             reviewQueue: reviewQueue,
-            allLearnedWords: allLearnedWords // 附带完整列表
+            allLearnedWords: allLearnedWords
         });
 
     } catch (error) {
