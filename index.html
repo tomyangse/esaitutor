@@ -28,7 +28,7 @@
                 <p class="error-text">加载任务失败，请刷新页面重试。</p>
             </div>
             
-            <!-- [重要更新] 新增“今日已学”状态 -->
+            <!-- 今日已学状态 -->
             <div id="learned-today-section" class="state" style="display: none;">
                 <div class="finished-icon">👍</div>
                 <h2>今日任务已完成</h2>
@@ -77,6 +77,17 @@
                 </div>
             </div>
         </main>
+
+        <!-- 已学单词列表区域 -->
+        <section id="learned-words-container" class="learned-words-container" style="display: none;">
+            <button id="toggle-words-btn" class="toggle-btn">
+                <span>📚 我学过的单词</span>
+                <span class="toggle-arrow">▼</span>
+            </button>
+            <div id="learned-words-list" class="words-list-hidden">
+                <!-- 单词将由JS动态填充到这里 -->
+            </div>
+        </section>
 
         <footer>
             <p>由 AI Tutor 强力驱动</p>
