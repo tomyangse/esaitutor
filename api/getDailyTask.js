@@ -52,13 +52,21 @@ export default async function handler(request, response) {
         const lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
         if (lastLearnedRecord && lastLearnedRecord.date === today) {
             
-            const wordInfoFromList = userProgressList.find(p => p && p.spanish === lastLearnedRecord.spanishWord);
+            let wordInfoFromList = userProgressList.find(p => p && p.spanish === lastLearnedRecord.spanishWord);
             
-            // [重要修正] 构造一个更健壮的 learnedToday 对象
+            // [重要修正] 自我修复逻辑
+            if (wordInfoFromList && !wordInfoFromList.exampleSentence) {
+                console.log(`Data self-healing: Fetching missing example sentence for "${wordInfoFromList.spanish}"`);
+                const aiExplanation = await getAITutorExplanation(wordInfoFromList);
+                wordInfoFromList.exampleSentence = aiExplanation.exampleSentence;
+
+                // 更新数据库中的旧记录
+                await kv.set(`user:${userId}:word:${wordInfoFromList.spanish}`, wordInfoFromList);
+            }
+
             const learnedTodayData = {
                 spanish: lastLearnedRecord.spanishWord,
-                // 优先使用 "特殊印章" 里的例句，如果印章里没有，就从总单词列表里找
-                exampleSentence: lastLearnedRecord.exampleSentence || (wordInfoFromList ? wordInfoFromList.exampleSentence : ''), 
+                exampleSentence: wordInfoFromList ? wordInfoFromList.exampleSentence : '', 
                 english: wordInfoFromList ? wordInfoFromList.english : ''
             };
 
