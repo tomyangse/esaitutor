@@ -1,11 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 元素获取 ---
+    // --- 元素获取 (新增) ---
+    const learnedWordsContainer = document.getElementById('learned-words-container');
+    const toggleWordsBtn = document.getElementById('toggle-words-btn');
+    const learnedWordsList = document.getElementById('learned-words-list');
     const speakButton = document.getElementById('speak-button');
     const markAsLearnedBtn = document.getElementById('mark-as-learned-btn');
     const showAnswerBtn = document.getElementById('show-answer-btn');
     const feedbackButtons = document.getElementById('feedback-buttons');
 
-    // --- 状态变量 ---
+
+    // --- 状态变量 (保持不变) ---
     let currentTask = null;
     let taskQueue = [];
     let spanishVoices = [];
@@ -56,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ai-example').textContent = aiTutor.exampleSentence || '暂无例句';
         document.getElementById('ai-tips').textContent = aiTutor.extraTips || '暂无提示';
     }
-
     function showReviewWord(word) {
         showState('review-section');
         document.getElementById('review-word-spanish').textContent = word.spanish;
@@ -65,11 +68,31 @@ document.addEventListener('DOMContentLoaded', () => {
         showAnswerBtn.style.display = 'block';
         feedbackButtons.style.display = 'none';
     }
-    
-    // [重要更新] 新增一个函数来显示“今日已学”卡片
     function showLearnedToday(task) {
         showState('learned-today-section');
         document.getElementById('learned-today-word').textContent = task.learnedToday.spanish;
+    }
+
+
+    // [重要更新] 新增函数：填充已学单词列表
+    function populateLearnedWordsList(words) {
+        if (!words || words.length === 0) {
+            learnedWordsContainer.style.display = 'none';
+            return;
+        }
+
+        learnedWordsContainer.style.display = 'block';
+        learnedWordsList.innerHTML = ''; // 清空旧列表
+
+        words.forEach(word => {
+            const item = document.createElement('div');
+            item.className = 'word-item';
+            item.innerHTML = `
+                <span class="spanish">${word.spanish}</span>
+                <span class="english">${word.english}</span>
+            `;
+            learnedWordsList.appendChild(item);
+        });
     }
 
     // --- 核心逻辑 ---
@@ -90,19 +113,17 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/getDailyTask', { signal: controller.signal });
             clearTimeout(timeoutId);
-            if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
+            if (!response.ok) throw new Error(`Network response was not ok`);
             
             const data = await response.json();
             
-            // [重要更新] 检查后台返回的新字段
+            // [重要更新] 调用填充列表函数
+            populateLearnedWordsList(data.allLearnedWords);
+
             if (data.learnedToday) {
                 taskQueue = data.reviewQueue || [];
-                // 如果还有复习任务，先复习。否则显示“今日已学”。
-                if (taskQueue.length > 0) {
-                    processNextTask();
-                } else {
-                    showLearnedToday(data);
-                }
+                if (taskQueue.length > 0) processNextTask();
+                else showLearnedToday(data);
             } else if (data.newWord) {
                 currentTask = data;
                 taskQueue = data.reviewQueue || [];
@@ -133,9 +154,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { console.error('Update progress error:', error); }
     }
 
-    // --- 事件监听 (保持不变) ---
+
+    // --- 事件监听 ---
+    toggleWordsBtn.addEventListener('click', () => {
+        learnedWordsList.classList.toggle('words-list-hidden');
+        toggleWordsBtn.classList.toggle('open');
+    });
+
     markAsLearnedBtn.addEventListener('click', async () => {
         await updateProgress(currentTask.newWord.spanish, 5, currentTask.newWord.english);
+        // 手动将新词添加到前端列表，避免刷新
+        const newWord = { spanish: currentTask.newWord.spanish, english: currentTask.newWord.english };
+        const currentList = Array.from(learnedWordsList.children).map(item => ({
+            spanish: item.querySelector('.spanish').textContent,
+            english: item.querySelector('.english').textContent
+        }));
+        populateLearnedWordsList([newWord, ...currentList]);
         processNextTask();
     });
     showAnswerBtn.addEventListener('click', () => {
@@ -160,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             speak(word, 'es-ES');
         }
     });
+
 
     // --- 应用启动 ---
     fetchDailyTask();
