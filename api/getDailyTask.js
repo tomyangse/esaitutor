@@ -61,7 +61,6 @@ export default async function handler(request, response) {
 
         let lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
         
-        // [重要修正] 增加对旧数据格式的兼容性检查
         if (!lastLearnedRecord || lastLearnedRecord.date !== today || !Array.isArray(lastLearnedRecord.words)) {
             lastLearnedRecord = { date: today, words: [] };
         }
@@ -89,7 +88,7 @@ export default async function handler(request, response) {
         const finalTaskQueue = [...newWordTasks, ...reviewTasks];
 
         response.status(200).json({
-            taskQueue: finalTaskQueue,
+            taskQueue: finalTaskQueue, // 只返回一个简单的任务列表
             allLearnedWords: allLearnedWords,
             settings: settings,
             wordsLearnedToday: lastLearnedRecord.words
