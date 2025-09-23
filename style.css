@@ -89,7 +89,7 @@ header p {
     font-size: 3em;
     margin-bottom: 10px;
 }
-.finished-state h2, #learned-today-section h2 {
+.finished-state h2, .learned-today-section h2 {
     color: #27ae60;
     margin-bottom: 10px;
 }
@@ -108,6 +108,15 @@ header p {
     margin-bottom: 20px;
     visibility: hidden; /* 默认隐藏 */
     transition: visibility 0.2s;
+}
+
+.example-sentence {
+    font-size: 1.1em;
+    color: #555;
+    margin-top: -5px; /* 调整与上方单词的间距 */
+    margin-bottom: 15px;
+    font-style: italic;
+    padding: 0 10px;
 }
 
 /* --- AI 老师讲解框 --- */
@@ -183,19 +192,13 @@ header p {
 .feedback-btn.good:hover { background-color: #27ae60; }
 
 
-/* --- 页脚 --- */
-footer {
-    margin-top: 40px;
-    color: #95a5a6;
-}
-
-/* --- 朗读按钮相关样式 --- */
+/* --- 朗读按钮 --- */
 .word-display {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px; /* 单词和按钮之间的间距 */
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 10px;
 }
 
 .speak-btn {
@@ -300,13 +303,75 @@ footer {
     color: #7f8c8d;
 }
 
-/* --- “今日已学”卡片中的例句 --- */
-.example-sentence {
+
+/* --- 页脚 --- */
+footer {
+    margin-top: 40px;
+    color: #95a5a6;
+}
+
+/* [重要更新] 今日已完成界面的新样式 */
+.divider {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 20px 0;
+}
+
+#review-list-title {
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.today-review-list {
+    max-height: 150px; /* 设定一个最大高度，超出则滚动 */
+    overflow-y: auto;
+    text-align: left;
+}
+
+.review-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.review-item:last-child {
+    border-bottom: none;
+}
+
+.review-item-word {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.review-item-sentence {
+    font-size: 0.95em;
+    color: #555;
+    font-style: italic;
+    margin-top: 5px;
+    padding-left: 34px; /* 与上方单词对齐 */
+}
+
+.word-display-small {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+}
+.word-display-small h3 {
+    font-size: 2.5em;
+    font-weight: 700;
+    color: #2c3e50;
+}
+.speak-btn-small svg {
+    width: 24px;
+    height: 24px;
+}
+.example-sentence-small {
     font-size: 1.1em;
     color: #555;
-    margin-top: -5px;
-    margin-bottom: 15px;
     font-style: italic;
-    padding: 0 10px;
 }
 
