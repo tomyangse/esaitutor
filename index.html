@@ -28,14 +28,14 @@
                 <p class="error-text">加载任务失败，请刷新页面重试。</p>
             </div>
             
-            <!-- [重要更新] 彻底改造“今日已学”卡片 -->
+            <!-- 今日已学状态 -->
             <div id="learned-today-section" class="state" style="display: none;">
                 <div class="finished-icon">👍</div>
                 <h2>今日任务已完成</h2>
                 <p>您今天学习的新词是：</p>
                 <div class="word-display-small">
                     <h3 id="learned-today-word"></h3>
-                    <button id="speak-learned-today-btn" title="朗读" class="speak-btn-small">
+                    <button id="speak-learned-today-btn" title="朗读" class="speak-btn speak-btn-small">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                     </button>
                 </div>
@@ -50,15 +50,14 @@
                 <p id="no-review-message" style="display: none;">今天没有需要复习的单词。</p>
             </div>
 
-
-            <!-- 完成状态 (学习流程结束时显示) -->
+            <!-- 完成状态 -->
             <div id="finished-state" class="state" style="display: none;">
                 <div class="finished-icon">🎉</div>
                 <h2>¡Felicidades!</h2>
                 <p>您已完成今天所有的学习任务！<br>明天见！</p>
             </div>
 
-            <!-- ... 新词学习和旧词复习部分保持不变 ... -->
+            <!-- 新词学习 -->
             <div id="new-word-section" class="state" style="display: none;">
                 <h2 class="card-title">✨ 今日新词</h2>
                 <div class="word-display">
@@ -74,8 +73,10 @@
                     <p><strong>例句:</strong> <span id="ai-example"></span></p>
                     <p><strong>💡 提示:</strong> <span id="ai-tips"></span></p>
                 </div>
-                <button id="mark-as-learned-btn" class="main-action-btn">我学会了，开始复习!</button>
+                <button id="mark-as-learned-btn" class="main-action-btn">我学会了!</button>
             </div>
+
+            <!-- 旧词复习 -->
             <div id="review-section" class="state" style="display: none;">
                 <h2 class="card-title">📚 今日复习</h2>
                 <h1 id="review-word-spanish" class="spanish-word"></h1>
@@ -101,9 +102,26 @@
         </section>
 
         <footer>
+            <button id="settings-btn" class="settings-btn" title="设置每日目标">⚙️</button>
             <p>由 AI Tutor 强力驱动</p>
         </footer>
     </div>
+
+    <!-- 设置弹窗 -->
+    <div id="settings-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <button id="close-modal-btn" class="close-btn">&times;</button>
+            <h2>设置每日学习目标</h2>
+            <div class="difficulty-options">
+                <button class="difficulty-btn" data-goal="1">轻松 (1个词)</button>
+                <button class="difficulty-btn" data-goal="2">中等 (2个词)</button>
+                <button class="difficulty-btn" data-goal="3">努力 (3个词)</button>
+                <button class="difficulty-btn" data-goal="5">挑战 (5个词)</button>
+            </div>
+            <p id="settings-feedback" class="feedback-message"></p>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
