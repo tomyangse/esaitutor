@@ -44,32 +44,30 @@ export default async function handler(request, response) {
     const today = new Date().toISOString().split('T')[0];
 
     try {
-        // 1. 获取用户设置，默认为每天1个词
         const settings = await kv.get(`user:${userId}:settings`) || { dailyGoal: 1 };
         
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         const allLearnedWords = userProgressList.filter(p => p).map(p => ({ spanish: p.spanish, english: p.english }));
         
-        // [重要修正] 确保 reviewQueue 中的每个对象都包含 exampleSentence
-        const reviewQueue = userProgressList
+        const reviewTasks = userProgressList
             .filter(p => p && p.reviewDate <= today)
             .map(p => ({ 
+                type: 'review',
                 spanish: p.spanish, 
                 english: p.english, 
-                exampleSentence: p.exampleSentence || '' // 如果没有，则提供空字符串
+                exampleSentence: p.exampleSentence || ''
             }));
 
-        // 2. 检查今天已学了多少个新词
         let lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
         if (!lastLearnedRecord || lastLearnedRecord.date !== today) {
-            lastLearnedRecord = { date: today, words: [] }; // 如果是新的一天，重置记录
+            lastLearnedRecord = { date: today, words: [] };
         }
 
         const wordsLearnedTodayCount = lastLearnedRecord.words.length;
         const wordsNeeded = settings.dailyGoal - wordsLearnedTodayCount;
 
-        let newWords = [];
+        let newWordTasks = [];
         if (wordsNeeded > 0) {
             const currentlyKnownWords = allLearnedWords.map(w => w.spanish);
             for (let i = 0; i < wordsNeeded; i++) {
@@ -77,15 +75,20 @@ export default async function handler(request, response) {
                 if (!nextWordToLearn || nextWordToLearn.spanish === 'error') break;
                 
                 const aiExplanation = await getAITutorExplanation(nextWordToLearn);
-                newWords.push({ ...nextWordToLearn, aiTutor: aiExplanation });
+                newWordTasks.push({ 
+                    type: 'new',
+                    ...nextWordToLearn, 
+                    aiTutor: aiExplanation 
+                });
                 currentlyKnownWords.push(nextWordToLearn.spanish);
             }
         }
+        
+        // [重要修正] 构造一个简单清晰的任务队列
+        const finalTaskQueue = [...newWordTasks, ...reviewTasks];
 
-        // 3. 返回包含用户设置的完整任务
         response.status(200).json({
-            newWords: newWords,
-            reviewQueue: reviewQueue,
+            taskQueue: finalTaskQueue, // 只返回一个简单的任务列表
             allLearnedWords: allLearnedWords,
             settings: settings,
             wordsLearnedToday: lastLearnedRecord.words
