@@ -28,30 +28,37 @@
                 <p class="error-text">加载任务失败，请刷新页面重试。</p>
             </div>
             
-            <!-- 今日已学状态 -->
+            <!-- [重要更新] 彻底改造“今日已学”卡片 -->
             <div id="learned-today-section" class="state" style="display: none;">
                 <div class="finished-icon">👍</div>
                 <h2>今日任务已完成</h2>
-                <p>您今天学习的单词是：</p>
-                <div class="word-display">
-                    <h1 id="learned-today-word" class="spanish-word"></h1>
-                    <button id="speak-learned-today-btn" title="朗读" class="speak-btn">
+                <p>您今天学习的新词是：</p>
+                <div class="word-display-small">
+                    <h3 id="learned-today-word"></h3>
+                    <button id="speak-learned-today-btn" title="朗读" class="speak-btn-small">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                     </button>
                 </div>
-                <!-- [重要修正] 确保这个p元素存在且ID正确 -->
-                <p id="learned-today-sentence" class="example-sentence"></p>
-                <p style="margin-top: 20px;">请明天再来学习新单词！</p>
+                <p id="learned-today-sentence" class="example-sentence-small"></p>
+                
+                <hr class="divider">
+
+                <h4 id="review-list-title">今日复习清单：</h4>
+                <div id="today-review-list" class="today-review-list">
+                    <!-- 复习单词将由JS动态填充 -->
+                </div>
+                <p id="no-review-message" style="display: none;">今天没有需要复习的单词。</p>
             </div>
 
-            <!-- 完成状态 -->
+
+            <!-- 完成状态 (学习流程结束时显示) -->
             <div id="finished-state" class="state" style="display: none;">
                 <div class="finished-icon">🎉</div>
                 <h2>¡Felicidades!</h2>
                 <p>您已完成今天所有的学习任务！<br>明天见！</p>
             </div>
 
-            <!-- 新词学习 -->
+            <!-- ... 新词学习和旧词复习部分保持不变 ... -->
             <div id="new-word-section" class="state" style="display: none;">
                 <h2 class="card-title">✨ 今日新词</h2>
                 <div class="word-display">
@@ -69,8 +76,6 @@
                 </div>
                 <button id="mark-as-learned-btn" class="main-action-btn">我学会了，开始复习!</button>
             </div>
-
-            <!-- 旧词复习 -->
             <div id="review-section" class="state" style="display: none;">
                 <h2 class="card-title">📚 今日复习</h2>
                 <h1 id="review-word-spanish" class="spanish-word"></h1>
