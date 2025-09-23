@@ -56,10 +56,12 @@ export default async function handler(request, response) {
         const todayStr = today.toISOString().split('T')[0];
         let dailyRecord = await kv.get(dailyRecordKey);
 
-        if (!dailyRecord || dailyRecord.date !== todayStr) {
+        // 兼容旧数据格式
+        if (!dailyRecord || dailyRecord.date !== todayStr || !Array.isArray(dailyRecord.words)) {
             dailyRecord = { date: todayStr, words: [] };
         }
         
+        // 避免重复添加
         if (!dailyRecord.words.find(w => w.spanish === spanishWord)) {
             dailyRecord.words.push({ 
                 spanish: spanishWord, 
