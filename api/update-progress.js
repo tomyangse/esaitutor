@@ -26,9 +26,9 @@ export default async function handler(request, response) {
             easeFactor: 2.5,
         };
     } else {
-        // 如果是旧词，确保它有 exampleSentence 字段
+        // 如果是旧词，确保它有 exampleSentence 字段，如果没有则补上
         if (!progress.hasOwnProperty('exampleSentence')) {
-            progress.exampleSentence = '';
+            progress.exampleSentence = exampleSentence || ''; 
         }
     }
 
