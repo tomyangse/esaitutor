@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const learnedWordsContainer = document.getElementById('learned-words-container');
     const toggleWordsBtn = document.getElementById('toggle-words-btn');
     const learnedWordsList = document.getElementById('learned-words-list');
+    const todayReviewList = document.getElementById('today-review-list');
 
     // --- 状态变量 ---
     let currentTask = null;
@@ -67,12 +68,37 @@ document.addEventListener('DOMContentLoaded', () => {
         showAnswerBtn.style.display = 'block';
         feedbackButtons.style.display = 'none';
     }
-    function showLearnedToday(words) {
+    function showLearnedToday(wordsLearnedToday, reviewQueue) {
         showState('learned-today-section');
-        // 只显示今天学的最后一个词作为代表
-        const lastWord = words[words.length - 1];
+        const lastWord = wordsLearnedToday[wordsLearnedToday.length - 1];
         document.getElementById('learned-today-word').textContent = lastWord.spanish;
         document.getElementById('learned-today-sentence').textContent = lastWord.exampleSentence || '';
+
+        const reviewListTitle = document.getElementById('review-list-title');
+        const noReviewMessage = document.getElementById('no-review-message');
+        todayReviewList.innerHTML = '';
+        if (reviewQueue && reviewQueue.length > 0) {
+            reviewListTitle.style.display = 'block';
+            noReviewMessage.style.display = 'none';
+            todayReviewList.style.display = 'block';
+            reviewQueue.forEach(word => {
+                const item = document.createElement('div');
+                item.className = 'review-item';
+                item.innerHTML = `
+                    <div class="review-item-word">
+                        <span>${word.spanish}</span>
+                        <button class="speak-btn speak-btn-small" data-word="${word.spanish}" data-sentence="${word.exampleSentence || ''}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                        </button>
+                    </div>
+                    <p class="review-item-sentence">${word.exampleSentence || ''}</p>`;
+                todayReviewList.appendChild(item);
+            });
+        } else {
+            reviewListTitle.style.display = 'none';
+            noReviewMessage.style.display = 'block';
+            todayReviewList.style.display = 'none';
+        }
     }
     function populateLearnedWordsList(words) {
         if (!words || words.length === 0) {
@@ -113,14 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
             populateLearnedWordsList(data.allLearnedWords);
             updateSettingsUI(data.settings.dailyGoal);
 
-            const newWordTasks = (data.newWords || []).map(word => ({ ...word, type: 'new' }));
-            const reviewTasks = (data.reviewQueue || []).map(word => ({ ...word, type: 'review' }));
-            taskQueue = [...newWordTasks, ...reviewTasks];
+            taskQueue = data.taskQueue || [];
 
             if (taskQueue.length > 0) {
                 processNextTask();
             } else if (data.wordsLearnedToday && data.wordsLearnedToday.length > 0) {
-                showLearnedToday(data.wordsLearnedToday);
+                showLearnedToday(data.wordsLearnedToday, data.reviewQueue);
             } else {
                 showState('finished-state');
             }
@@ -226,6 +250,19 @@ document.addEventListener('DOMContentLoaded', () => {
             speak(word, 'es-ES', speakLearnedTodayBtn, () => setTimeout(() => speak(sentence, 'es-ES', speakLearnedTodayBtn), 300));
         } else if (word) {
             speak(word, 'es-ES', speakLearnedTodayBtn);
+        }
+    });
+    
+    todayReviewList.addEventListener('click', (e) => {
+        const button = e.target.closest('.speak-btn');
+        if (button) {
+            const word = button.dataset.word;
+            const sentence = button.dataset.sentence;
+            if (word && sentence) {
+                speak(word, 'es-ES', button, () => setTimeout(() => speak(sentence, 'es-ES', button), 300));
+            } else if (word) {
+                speak(word, 'es-ES', button);
+            }
         }
     });
 
