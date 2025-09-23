@@ -44,51 +44,46 @@ export default async function handler(request, response) {
     const today = new Date().toISOString().split('T')[0];
 
     try {
+        // 1. 获取用户设置，默认为每天1个词
+        const settings = await kv.get(`user:${userId}:settings`) || { dailyGoal: 1 };
+        
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         const allLearnedWords = userProgressList.filter(p => p).map(p => ({ spanish: p.spanish, english: p.english }));
-        const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= today).map(p => ({ spanish: p.spanish, english: p.english }));
+        const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= today).map(p => ({ spanish: p.spanish, english: p.english, exampleSentence: p.exampleSentence || '' }));
 
-        const lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
-        if (lastLearnedRecord && lastLearnedRecord.date === today) {
-            
-            let wordInfoFromList = userProgressList.find(p => p && p.spanish === lastLearnedRecord.spanishWord);
-            
-            // [重要修正] 自我修复逻辑
-            if (wordInfoFromList && !wordInfoFromList.exampleSentence) {
-                console.log(`Data self-healing: Fetching missing example sentence for "${wordInfoFromList.spanish}"`);
-                const aiExplanation = await getAITutorExplanation(wordInfoFromList);
-                wordInfoFromList.exampleSentence = aiExplanation.exampleSentence;
+        // 2. 检查今天已学了多少个新词
+        let lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
+        if (!lastLearnedRecord || lastLearnedRecord.date !== today) {
+            lastLearnedRecord = { date: today, words: [] }; // 如果是新的一天，重置记录
+        }
 
-                // 更新数据库中的旧记录
-                await kv.set(`user:${userId}:word:${wordInfoFromList.spanish}`, wordInfoFromList);
+        const wordsLearnedTodayCount = lastLearnedRecord.words.length;
+        const wordsNeeded = settings.dailyGoal - wordsLearnedTodayCount;
+
+        let newWords = [];
+        if (wordsNeeded > 0) {
+            // 需要获取新词
+            const currentlyKnownWords = allLearnedWords.map(w => w.spanish);
+            for (let i = 0; i < wordsNeeded; i++) {
+                const nextWordToLearn = await getNewWordFromAI(currentlyKnownWords);
+                if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
+                    // 如果中途获取失败，则返回已获取的部分
+                    break;
+                }
+                const aiExplanation = await getAITutorExplanation(nextWordToLearn);
+                newWords.push({ ...nextWordToLearn, aiTutor: aiExplanation });
+                currentlyKnownWords.push(nextWordToLearn.spanish); // 避免在同一次请求中获取重复的词
             }
-
-            const learnedTodayData = {
-                spanish: lastLearnedRecord.spanishWord,
-                exampleSentence: wordInfoFromList ? wordInfoFromList.exampleSentence : '', 
-                english: wordInfoFromList ? wordInfoFromList.english : ''
-            };
-
-            return response.status(200).json({
-                learnedToday: learnedTodayData,
-                reviewQueue: reviewQueue,
-                allLearnedWords: allLearnedWords
-            });
         }
 
-        const nextWordToLearn = await getNewWordFromAI(allLearnedWords.map(w => w.spanish));
-        if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
-            throw new Error("Failed to fetch a new word from the AI.");
-        }
-        
-        const aiExplanation = await getAITutorExplanation(nextWordToLearn);
-        const newWordData = { ...nextWordToLearn, aiTutor: aiExplanation };
-
+        // 3. 返回包含用户设置的完整任务
         response.status(200).json({
-            newWord: newWordData,
+            newWords: newWords, // 返回一个新词数组
             reviewQueue: reviewQueue,
-            allLearnedWords: allLearnedWords
+            allLearnedWords: allLearnedWords,
+            settings: settings,
+            wordsLearnedToday: lastLearnedRecord.words
         });
 
     } catch (error) {
