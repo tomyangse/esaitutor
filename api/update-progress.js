@@ -25,6 +25,11 @@ export default async function handler(request, response) {
             interval: 1,
             easeFactor: 2.5,
         };
+    } else {
+        // 如果是旧词，确保它有 exampleSentence 字段
+        if (!progress.hasOwnProperty('exampleSentence')) {
+            progress.exampleSentence = '';
+        }
     }
 
     // --- SM-2 间隔重复算法核心逻辑 ---
@@ -55,7 +60,6 @@ export default async function handler(request, response) {
             dailyRecord = { date: todayStr, words: [] };
         }
         
-        // 避免重复添加
         if (!dailyRecord.words.find(w => w.spanish === spanishWord)) {
             dailyRecord.words.push({ 
                 spanish: spanishWord, 
