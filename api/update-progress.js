@@ -5,11 +5,12 @@ export default async function handler(request, response) {
         return response.status(405).end();
     }
 
-    const { spanishWord, quality, englishWord } = request.body;
+    const { spanishWord, quality, englishWord, exampleSentence } = request.body;
     const userId = 'user_default';
-    const key = `user:${userId}:word:${spanishWord}`;
+    const wordKey = `user:${userId}:word:${spanishWord}`;
+    const dailyRecordKey = `user:${userId}:lastLearnedNewWord`;
 
-    let progress = await kv.get(key);
+    let progress = await kv.get(wordKey);
     const isNewWord = !progress;
 
     if (isNewWord) {
@@ -19,6 +20,7 @@ export default async function handler(request, response) {
         progress = {
             spanish: spanishWord,
             english: englishWord,
+            exampleSentence: exampleSentence || '',
             repetitions: 0,
             interval: 1,
             easeFactor: 2.5,
@@ -31,34 +33,41 @@ export default async function handler(request, response) {
         progress.interval = 1;
     } else {
         progress.repetitions += 1;
-        if (progress.repetitions === 1) {
-            progress.interval = 1;
-        } else if (progress.repetitions === 2) {
-            progress.interval = 6;
-        } else {
-            progress.interval = Math.ceil(progress.interval * progress.easeFactor);
-        }
+        if (progress.repetitions === 1) progress.interval = 1;
+        else if (progress.repetitions === 2) progress.interval = 6;
+        else progress.interval = Math.ceil(progress.interval * progress.easeFactor);
         
         progress.easeFactor += (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-        if (progress.easeFactor < 1.3) {
-            progress.easeFactor = 1.3;
-        }
+        if (progress.easeFactor < 1.3) progress.easeFactor = 1.3;
     }
     
     const today = new Date();
     const nextReviewDate = new Date(today);
     nextReviewDate.setDate(today.getDate() + progress.interval);
     progress.reviewDate = nextReviewDate.toISOString().split('T')[0];
-
-    // [重要更新] 如果是新学的单词，就盖上“特殊印章”
+    
+    // 更新今日已学单词列表
     if (isNewWord) {
         const todayStr = today.toISOString().split('T')[0];
-        await kv.set(`user:${userId}:lastLearnedNewWord`, { spanishWord: spanishWord, date: todayStr });
+        let dailyRecord = await kv.get(dailyRecordKey);
+
+        if (!dailyRecord || dailyRecord.date !== todayStr) {
+            dailyRecord = { date: todayStr, words: [] };
+        }
+        
+        // 避免重复添加
+        if (!dailyRecord.words.find(w => w.spanish === spanishWord)) {
+            dailyRecord.words.push({ 
+                spanish: spanishWord, 
+                english: englishWord, 
+                exampleSentence: exampleSentence || '' 
+            });
+        }
+        await kv.set(dailyRecordKey, dailyRecord);
     }
 
-    await kv.set(key, progress);
+    await kv.set(wordKey, progress);
 
     response.status(200).json({ success: true, newProgress: progress });
 }
-
 
