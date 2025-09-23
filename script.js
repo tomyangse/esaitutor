@@ -110,7 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
         words.forEach(word => {
             const item = document.createElement('div');
             item.className = 'word-item';
-            item.innerHTML = `<span class="spanish">${word.spanish}</span><span class="english">${word.english}</span>`;
+             const sentenceHTML = word.exampleSentence 
+                ? `<p class="sentence">${word.exampleSentence}</p>` 
+                : '';
+            item.innerHTML = `
+                <div class="word-item-main">
+                    <span class="spanish">${word.spanish}</span>
+                    <span class="english">${word.english}</span>
+                </div>
+                ${sentenceHTML}`;
             learnedWordsList.appendChild(item);
         });
     }
