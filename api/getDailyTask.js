@@ -50,7 +50,15 @@ export default async function handler(request, response) {
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         const allLearnedWords = userProgressList.filter(p => p).map(p => ({ spanish: p.spanish, english: p.english }));
-        const reviewQueue = userProgressList.filter(p => p && p.reviewDate <= today).map(p => ({ spanish: p.spanish, english: p.english, exampleSentence: p.exampleSentence || '' }));
+        
+        // [重要修正] 确保 reviewQueue 中的每个对象都包含 exampleSentence
+        const reviewQueue = userProgressList
+            .filter(p => p && p.reviewDate <= today)
+            .map(p => ({ 
+                spanish: p.spanish, 
+                english: p.english, 
+                exampleSentence: p.exampleSentence || '' // 如果没有，则提供空字符串
+            }));
 
         // 2. 检查今天已学了多少个新词
         let lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
@@ -63,23 +71,20 @@ export default async function handler(request, response) {
 
         let newWords = [];
         if (wordsNeeded > 0) {
-            // 需要获取新词
             const currentlyKnownWords = allLearnedWords.map(w => w.spanish);
             for (let i = 0; i < wordsNeeded; i++) {
                 const nextWordToLearn = await getNewWordFromAI(currentlyKnownWords);
-                if (!nextWordToLearn || nextWordToLearn.spanish === 'error') {
-                    // 如果中途获取失败，则返回已获取的部分
-                    break;
-                }
+                if (!nextWordToLearn || nextWordToLearn.spanish === 'error') break;
+                
                 const aiExplanation = await getAITutorExplanation(nextWordToLearn);
                 newWords.push({ ...nextWordToLearn, aiTutor: aiExplanation });
-                currentlyKnownWords.push(nextWordToLearn.spanish); // 避免在同一次请求中获取重复的词
+                currentlyKnownWords.push(nextWordToLearn.spanish);
             }
         }
 
         // 3. 返回包含用户设置的完整任务
         response.status(200).json({
-            newWords: newWords, // 返回一个新词数组
+            newWords: newWords,
             reviewQueue: reviewQueue,
             allLearnedWords: allLearnedWords,
             settings: settings,
