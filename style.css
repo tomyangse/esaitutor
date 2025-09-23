@@ -285,13 +285,20 @@ header p {
 
 .word-item {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
     padding: 10px 5px;
     border-bottom: 1px solid #eef2f5;
 }
 
 .word-item:last-child {
     border-bottom: none;
+}
+
+.word-item-main {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
 }
 
 .word-item .spanish {
@@ -303,14 +310,119 @@ header p {
     color: #7f8c8d;
 }
 
-
-/* --- 页脚 --- */
-footer {
-    margin-top: 40px;
+.word-item .sentence {
+    font-size: 0.9em;
     color: #95a5a6;
+    margin-top: 4px;
+    font-style: italic;
 }
 
-/* [重要更新] 今日已完成界面的新样式 */
+/* --- 页脚和设置按钮 --- */
+footer {
+    position: relative;
+    margin-top: 40px;
+    color: #95a5a6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.settings-btn {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    cursor: pointer;
+    color: #95a5a6;
+    transition: transform 0.2s ease;
+}
+.settings-btn:hover {
+    transform: translateY(-50%) rotate(30deg);
+}
+
+/* --- 设置弹窗 --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    text-align: center;
+    position: relative;
+    width: 90%;
+    max-width: 400px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #aaa;
+    cursor: pointer;
+}
+.close-btn:hover {
+    color: #333;
+}
+
+.modal-content h2 {
+    margin-bottom: 25px;
+    color: #2c3e50;
+}
+
+.difficulty-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.difficulty-btn {
+    background-color: #f0f0f0;
+    border: 2px solid #f0f0f0;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.difficulty-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.difficulty-btn.selected {
+    border-color: #007bff;
+    background-color: #e7f3ff;
+    color: #007bff;
+    font-weight: bold;
+}
+
+.feedback-message {
+    margin-top: 20px;
+    color: #2ecc71;
+    font-weight: bold;
+    min-height: 20px;
+}
+
+
+/* --- “今日已完成”界面的新样式 --- */
 .divider {
     border: none;
     border-top: 1px solid #eee;
@@ -324,7 +436,7 @@ footer {
 }
 
 .today-review-list {
-    max-height: 150px; /* 设定一个最大高度，超出则滚动 */
+    max-height: 150px;
     overflow-y: auto;
     text-align: left;
 }
@@ -350,7 +462,7 @@ footer {
     color: #555;
     font-style: italic;
     margin-top: 5px;
-    padding-left: 34px; /* 与上方单词对齐 */
+    padding-left: 34px;
 }
 
 .word-display-small {
