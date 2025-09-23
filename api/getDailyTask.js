@@ -48,7 +48,15 @@ export default async function handler(request, response) {
         
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
-        const allLearnedWords = userProgressList.filter(p => p).map(p => ({ spanish: p.spanish, english: p.english }));
+        
+        // [重要更新] 确保 allLearnedWords 包含例句
+        const allLearnedWords = userProgressList
+            .filter(p => p)
+            .map(p => ({ 
+                spanish: p.spanish, 
+                english: p.english,
+                exampleSentence: p.exampleSentence || '' 
+            }));
         
         const reviewTasks = userProgressList
             .filter(p => p && p.reviewDate <= today)
@@ -88,7 +96,7 @@ export default async function handler(request, response) {
         const finalTaskQueue = [...newWordTasks, ...reviewTasks];
 
         response.status(200).json({
-            taskQueue: finalTaskQueue, // 只返回一个简单的任务列表
+            taskQueue: finalTaskQueue,
             allLearnedWords: allLearnedWords,
             settings: settings,
             wordsLearnedToday: lastLearnedRecord.words
