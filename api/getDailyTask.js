@@ -49,7 +49,6 @@ export default async function handler(request, response) {
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
         
-        // [重要更新] 确保 allLearnedWords 包含例句
         const allLearnedWords = userProgressList
             .filter(p => p)
             .map(p => ({ 
@@ -79,6 +78,12 @@ export default async function handler(request, response) {
         let newWordTasks = [];
         if (wordsNeeded > 0) {
             const currentlyKnownWords = allLearnedWords.map(w => w.spanish);
+            lastLearnedRecord.words.forEach(w => {
+                if (w && w.spanish && !currentlyKnownWords.includes(w.spanish)) {
+                    currentlyKnownWords.push(w.spanish);
+                }
+            });
+
             for (let i = 0; i < wordsNeeded; i++) {
                 const nextWordToLearn = await getNewWordFromAI(currentlyKnownWords);
                 if (!nextWordToLearn || nextWordToLearn.spanish === 'error') break;
@@ -99,7 +104,8 @@ export default async function handler(request, response) {
             taskQueue: finalTaskQueue,
             allLearnedWords: allLearnedWords,
             settings: settings,
-            wordsLearnedToday: lastLearnedRecord.words
+            wordsLearnedToday: lastLearnedRecord.words,
+            reviewQueue: reviewTasks 
         });
 
     } catch (error) {
@@ -107,3 +113,4 @@ export default async function handler(request, response) {
         response.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 }
+
