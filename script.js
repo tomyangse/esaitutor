@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const learnedWordsContainer = document.getElementById('learned-words-container');
     const toggleWordsBtn = document.getElementById('toggle-words-btn');
     const learnedWordsList = document.getElementById('learned-words-list');
-    const todayLearnedList = document.getElementById('today-learned-list');
     const todayReviewList = document.getElementById('today-review-list');
     const aiChatForm = document.getElementById('ai-chat-form');
     const aiChatInput = document.getElementById('ai-chat-input');
@@ -75,22 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function showLearnedToday(wordsLearnedToday, reviewQueue) {
         showState('learned-today-section');
-        
-        todayLearnedList.innerHTML = '';
-        wordsLearnedToday.forEach(word => {
-            const item = document.createElement('div');
-            item.className = 'review-item';
-            item.innerHTML = `
-                <div class="review-item-word">
-                    <span>${word.spanish}</span>
-                    <button class="speak-btn speak-btn-small" data-word="${word.spanish}" data-sentence="${word.exampleSentence || ''}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                    </button>
-                </div>
-                <p class="review-item-sentence">${word.exampleSentence || ''}</p>
-            `;
-            todayLearnedList.appendChild(item);
-        });
+        const lastWord = wordsLearnedToday[wordsLearnedToday.length - 1];
+        document.getElementById('learned-today-word').textContent = lastWord.spanish;
+        document.getElementById('learned-today-sentence').textContent = lastWord.exampleSentence || '';
 
         const reviewListTitle = document.getElementById('review-list-title');
         const noReviewMessage = document.getElementById('no-review-message');
@@ -299,13 +285,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 为两个动态列表统一添加事件委托
-    document.getElementById('learning-card').addEventListener('click', (e) => {
+    speakLearnedTodayBtn.addEventListener('click', () => {
+        const word = document.getElementById('learned-today-word').textContent;
+        const sentence = document.getElementById('learned-today-sentence').textContent;
+        if (word && sentence) {
+            speak(word, 'es-ES', speakLearnedTodayBtn, () => setTimeout(() => speak(sentence, 'es-ES', speakLearnedTodayBtn), 300));
+        } else if (word) {
+            speak(word, 'es-ES', speakLearnedTodayBtn);
+        }
+    });
+    
+    todayReviewList.addEventListener('click', (e) => {
         const button = e.target.closest('.speak-btn');
         if (button) {
-            // 确保我们不重复处理主学习卡片的按钮
-            if (button.id === 'speak-button') return; 
-
             const word = button.dataset.word;
             const sentence = button.dataset.sentence;
             if (word && sentence) {
@@ -315,9 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
+
     aiChatForm.addEventListener('submit', handleAskTutor);
 
     fetchDailyTask(); // 启动
 });
-
