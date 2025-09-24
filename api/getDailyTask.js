@@ -48,11 +48,14 @@ export default async function handler(request, response) {
         
         const userWordKeys = await kv.keys(`user:${userId}:word:*`);
         const userProgressList = userWordKeys.length > 0 ? await kv.mget(...userWordKeys) : [];
-        const allLearnedWords = userProgressList.filter(p => p).map(p => ({ 
-            spanish: p.spanish, 
-            english: p.english,
-            exampleSentence: p.exampleSentence || '' 
-        }));
+        
+        const allLearnedWords = userProgressList
+            .filter(p => p) // 确保过滤掉null或undefined的记录
+            .map(p => ({ 
+                spanish: p.spanish, 
+                english: p.english,
+                exampleSentence: p.exampleSentence || '' 
+            }));
         
         const reviewTasks = userProgressList
             .filter(p => p && p.reviewDate <= today)
@@ -65,18 +68,17 @@ export default async function handler(request, response) {
 
         let lastLearnedRecord = await kv.get(`user:${userId}:lastLearnedNewWord`);
         
+        // [重要修正] 增加对旧数据格式的兼容性检查
         if (!lastLearnedRecord || lastLearnedRecord.date !== today || !Array.isArray(lastLearnedRecord.words)) {
             lastLearnedRecord = { date: today, words: [] };
         }
 
-        // [重要修正] 在这里计算今天还需要学习多少个新词
         const wordsLearnedTodayCount = lastLearnedRecord.words.length;
         const wordsNeeded = settings.dailyGoal - wordsLearnedTodayCount;
 
         let newWordTasks = [];
         if (wordsNeeded > 0) {
             const currentlyKnownWords = allLearnedWords.map(w => w.spanish);
-            // 将今天已经学过的词也加入排除列表，避免重复
             lastLearnedRecord.words.forEach(w => {
                 if (!currentlyKnownWords.includes(w.spanish)) {
                     currentlyKnownWords.push(w.spanish);
