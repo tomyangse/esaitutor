@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleWordsBtn = document.getElementById('toggle-words-btn');
     const learnedWordsList = document.getElementById('learned-words-list');
     const todayReviewList = document.getElementById('today-review-list');
+    const aiChatForm = document.getElementById('ai-chat-form');
+    const aiChatInput = document.getElementById('ai-chat-input');
+    const aiChatSubmit = document.getElementById('ai-chat-submit');
+    const aiChatResponse = document.getElementById('ai-chat-response');
 
     // --- 状态变量 ---
     let currentTask = null;
@@ -202,6 +206,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- AI问答模块 ---
+    async function handleAskTutor(event) {
+        event.preventDefault();
+        const question = aiChatInput.value.trim();
+        if (!question) return;
+
+        aiChatInput.disabled = true;
+        aiChatSubmit.disabled = true;
+        aiChatResponse.innerHTML = '<div class="spinner"></div>';
+
+        try {
+            const response = await fetch('/api/ask-tutor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'AI老师暂时无法回答，请稍后再试。');
+            }
+            aiChatResponse.innerHTML = `<p>${data.answer.replace(/\n/g, '<br>')}</p>`;
+        } catch (error) {
+            aiChatResponse.innerHTML = `<p class="error-text">${error.message}</p>`;
+        } finally {
+            aiChatInput.disabled = false;
+            aiChatSubmit.disabled = false;
+            aiChatInput.value = '';
+        }
+    }
+
     // --- 事件监听 ---
     settingsBtn.addEventListener('click', openSettingsModal);
     closeModalBtn.addEventListener('click', closeSettingsModal);
@@ -273,6 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    aiChatForm.addEventListener('submit', handleAskTutor);
 
     fetchDailyTask(); // 启动
 });
