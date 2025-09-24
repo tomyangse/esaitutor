@@ -32,14 +32,10 @@
             <div id="learned-today-section" class="state" style="display: none;">
                 <div class="finished-icon">👍</div>
                 <h2>今日任务已完成</h2>
-                <p>您今天学习的新词是：</p>
-                <div class="word-display-small">
-                    <h3 id="learned-today-word"></h3>
-                    <button id="speak-learned-today-btn" title="朗读" class="speak-btn speak-btn-small">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                    </button>
+                <p>您今天学习的新词有：</p>
+                <div id="today-learned-list" class="today-review-list">
+                    <!-- 今天学过的新词将由JS动态填充 -->
                 </div>
-                <p id="learned-today-sentence" class="example-sentence-small"></p>
                 
                 <hr class="divider">
 
@@ -76,7 +72,7 @@
                 </div>
                 <button id="mark-as-learned-btn" class="main-action-btn">我学会了!</button>
             </div>
-            
+
             <!-- 旧词复习 -->
             <div id="review-section" class="state" style="display: none;">
                 <h2 class="card-title">📚 今日复习</h2>
@@ -101,7 +97,8 @@
                 <!-- 单词将由JS动态填充到这里 -->
             </div>
         </section>
-
+        
+        <!-- [重要修正] 将AI问答模块移到正确的位置 -->
         <section class="ai-chat-container">
             <h3>有问题？问AI老师！</h3>
             <div id="ai-chat-response" class="chat-response">
@@ -138,3 +135,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
